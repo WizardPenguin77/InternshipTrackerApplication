@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+venv/
+.venv/
+env/
+.env/
+
+# Production builds and caches
+.next/
+out/
+build/
+dist/
+coverage/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and runtime files
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Local databases and generated data
+*.sqlite
+*.sqlite3
+*.db
+supabase/.temp/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# TypeScript build metadata
+*.tsbuildinfo
+
+# Test and tool reports
+playwright-report/
+test-results/
+htmlcov/

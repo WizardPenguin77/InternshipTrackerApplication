@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A calm, focused internship application tracker." />
+    <title>Northstar — Internship tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#top" aria-label="Northstar home">
+          <span class="brand-mark">✦</span>
+          <span>northstar</span>
+        </a>
+        <p class="eyebrow sidebar-label">Workspace</p>
+        <nav class="nav" aria-label="Primary navigation">
+          <a class="nav-link active" href="#dashboard"><span>⌂</span> Dashboard</a>
+          <a class="nav-link" href="#applications"><span>▤</span> Applications <b id="nav-application-count">0</b></a>
+          <a class="nav-link" href="#jobs"><span>◈</span> Job board <b>new</b></a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="tip-card">
+            <span class="tip-icon">✺</span>
+            <strong>Small steps add up.</strong>
+            <p>Keep your pipeline moving by making one thoughtful application today.</p>
+          </div>
+          <div class="profile"><span class="avatar">AJ</span><span><strong>Alex Johnson</strong><small>Job seeker</small></span><button aria-label="Profile menu">•••</button></div>
+        </div>
+      </aside>
+
+      <main id="top" class="main-content">
+        <header class="topbar"><div class="mobile-brand"><span class="brand-mark">✦</span> northstar</div><div class="sync-status"><span class="status-dot"></span> Saved locally <span id="last-saved"></span></div></header>
+
+        <section id="dashboard" class="hero">
+          <div><p class="eyebrow">Saturday, September 19, 2026</p><h1>Good morning, Alex <span>✦</span></h1><p class="hero-copy">A clear view of where you are, and where you’re headed next.</p></div>
+          <button class="primary-button" data-open-modal="application-modal">＋ Add application</button>
+        </section>
+
+        <section class="stats-grid" aria-label="Application overview">
+          <article class="stat-card accent-card"><div class="stat-top"><span>Active applications</span><span class="stat-icon">↗</span></div><strong id="stat-active">0</strong><p><span class="trend">↑ <span id="stat-trend">0</span></span> from last week</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Interviews</span><span class="stat-icon purple">◉</span></div><strong id="stat-interviews">0</strong><p>Keep the momentum going</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Offers</span><span class="stat-icon yellow">★</span></div><strong id="stat-offers">0</strong><p>You’re doing great</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Response rate</span><span class="stat-icon blue">%</span></div><strong id="stat-response">0%</strong><p>Across all applications</p></article>
+        </section>
+
+        <div class="content-grid">
+          <section id="applications" class="panel applications-panel">
+            <div class="section-heading"><div><p class="eyebrow">Your pipeline</p><h2>Recent applications</h2></div><a href="#applications" class="text-link">View all <span>→</span></a></div>
+            <div class="toolbar"><label class="search-box"><span>⌕</span><input id="application-search" type="search" placeholder="Search applications" /></label><select id="status-filter" aria-label="Filter applications"><option value="All">All statuses</option><option>Wishlist</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
+            <div class="table-wrap"><table><thead><tr><th>Company & role</th><th>Status</th><th>Date applied</th><th>Next step</th><th aria-label="Actions"></th></tr></thead><tbody id="applications-body"></tbody></table><div id="empty-applications" class="empty-state" hidden>No applications match that search.</div></div>
+          </section>
+
+          <section id="jobs" class="panel jobs-panel">
+            <div class="section-heading"><div><p class="eyebrow">Curated for you</p><h2>Fresh opportunities</h2></div><button id="refresh-jobs" class="icon-button" title="Refresh jobs">↻</button></div>
+            <div class="jobs-meta"><span class="live-pill"><i></i> Live feed</span><span id="job-refresh-label">Updated just now</span></div>
+            <div id="jobs-list" class="jobs-list"></div>
+            <p class="jobs-footnote">Job sources are normalized for quick review. Apply on the original listing.</p>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <dialog id="application-modal" class="modal"><form method="dialog" id="application-form"><div class="modal-heading"><div><p class="eyebrow">Pipeline update</p><h2>Add application</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div><div class="form-grid"><label>Company<input name="company" required maxlength="80" placeholder="e.g. Linear" /></label><label>Role<input name="role" required maxlength="100" placeholder="e.g. Product Design Intern" /></label><label>Location<input name="location" maxlength="80" placeholder="e.g. Remote · US" /></label><label>Date applied<input name="date" type="date" required /></label><label>Status<select name="status"><option>Applied</option><option>Wishlist</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></label><label>Next step<input name="nextStep" maxlength="120" placeholder="e.g. Follow up next week" /></label><label class="full-width">Application URL<input name="url" type="url" placeholder="https://..." /></label><label class="full-width">Notes<textarea name="notes" rows="3" maxlength="500" placeholder="A quick note to your future self..."></textarea></label></div><div class="modal-actions"><button class="secondary-button" value="cancel">Cancel</button><button class="primary-button" value="default">Save application</button></div></form></dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
