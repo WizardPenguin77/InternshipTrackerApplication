@@ -7,7 +7,11 @@ step. Application records are stored in `localStorage`; job ingestion is kept
 behind a small adapter boundary until a server-side scraper is added.
 
 ## Agent roles
-
+- **MAIN AGENT** When prompted to make any changes, always consult the three
+  agents listed below first. NEVER make changes without first showing me
+  potential changes and explaining every decision made. NEVER change any files
+  without first showing me planned changes and explaining decisions. NEVER
+  update the Github history. 
 - **Explorer (read-only):** inspect the repository, identify relevant files and
   existing conventions, and report areas that should change. Explorer must not
   edit files, commit, or push.
