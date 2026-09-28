@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Test</title>
+</head>
+<body>
+
+<script type="module">
+    import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+    );
+
+    const { data, error } = await supabase
+    .from('user_jobs')
+    .select('*');
+
+    console.log('user_jobs:', data);
+    console.log('error:', error);
+    
+</script>
+</body>
+</html>
