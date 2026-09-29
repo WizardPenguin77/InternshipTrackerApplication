@@ -51,7 +51,7 @@ function renderApplications() {
   });
   $('#applications-body').innerHTML = visible.map((item) => `
     <tr><td><div class="company-cell"><span class="company-logo">${escapeHtml(item.company.slice(0, 2).toUpperCase())}</span><div><strong>${escapeHtml(item.company)}</strong><div class="role">${escapeHtml(item.role)}</div></div></div></td>
-    <td><select class="status ${item.status === 'Applied' ? 'status-Applied' : `status-${item.status}`}" data-status-id="${item.id}" aria-label="Change ${escapeHtml(item.company)} status">${['Wishlist','Applied','Interview','Offer','Rejected'].map((status) => `<option ${status === item.status ? 'selected' : ''}>${status}</option>`).join('')}</select></td>
+    <td><select class="status ${item.status === 'Applied' ? 'status-Applied' : `status-${item.status}`}" data-status-id="${item.id}" aria-label="Change ${escapeHtml(item.company)} status">${['Applied','Interview','Offer','Rejected'].map((status) => `<option ${status === item.status ? 'selected' : ''}>${status}</option>`).join('')}</select></td>
     <td class="date-cell">${formatDate(item.date)}</td><td class="next-step">${escapeHtml(item.nextStep || '—')}</td><td><button class="row-actions" data-delete-id="${item.id}" aria-label="Delete ${escapeHtml(item.company)}">•••</button></td></tr>`).join('');
   $('#empty-applications').hidden = visible.length !== 0;
 }

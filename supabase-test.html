@@ -1,26 +1,121 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Supabase Test</title>
+    <meta charset="UTF-8">
+    <title>Supabase Auth Test</title>
 </head>
 <body>
+    <h1>Supabase Test</h1>
 
-<script type="module">
-    import { createClient } from
-        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    <form id="login-form">
+        <label>
+            Email:
+            <input id="email" type="email" required autocomplete="email">
+        </label>
 
-    const supabase = createClient(
-        'https://hemcyspyolpvrlghwozj.supabase.co',
-        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
-    );
+        <br><br>
 
-    const { data, error } = await supabase
-    .from('user_jobs')
-    .select('*');
+        <label>
+            Password:
+            <input id="password" type="password" required autocomplete="current-password">
+        </label>
 
-    console.log('user_jobs:', data);
-    console.log('error:', error);
-    
-</script>
+        <br><br>
+
+        <button type="submit">Log in</button>
+        <button id="logout-button" type="button" hidden>Log out</button>
+    </form>
+
+    <p id="status">Authenticating you.</p>
+
+    <h2>user_jobs</h2>
+    <pre id="results"></pre>
+
+    <script type="module">
+        import { createClient } from
+            'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        const supabase = createClient(
+            'https://hemcyspyolpvrlghwozj.supabase.co',
+            'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+        );
+
+        const loginForm = document.querySelector('#login-form');
+        const emailInput = document.querySelector('#email');
+        const passwordInput = document.querySelector('#password');
+        const logoutButton = document.querySelector('#logout-button');
+        const statusElement = document.querySelector('#status');
+        const resultsElement = document.querySelector('#results');
+
+        function showStatus(message, isError = false) {
+            statusElement.textContent = message;
+            statusElement.style.color = isError ? 'red' : 'inherit';
+        }
+
+        async function loadJobs(session) {
+            if (!session) {
+                resultsElement.textContent = '';
+                logoutButton.hidden = true;
+                showStatus('Please log in.');
+                return;
+            }
+
+            logoutButton.hidden = false;
+            showStatus(`Logged in as ${session.user.email}. Loading jobs...`);
+
+            const { data, error } = await supabase
+                .from('user_jobs')
+                .select('*');
+
+            console.log('user_jobs:', data);
+            console.log('error:', error);
+
+            if (error) {
+                resultsElement.textContent = error.message;
+                showStatus('The user_jobs query failed.', true);
+                return;
+            }
+
+            resultsElement.textContent = JSON.stringify(data, null, 2);
+            showStatus(`Loaded ${data.length} job(s).`);
+        }
+
+        loginForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            showStatus('Logging in...');
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: emailInput.value,
+                password: passwordInput.value
+            });
+
+            if (error) {
+                showStatus(error.message, true);
+                return;
+            }
+
+            passwordInput.value = '';
+            await loadJobs(data.session);
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            const { error } = await supabase.auth.signOut();
+
+            if (error) {
+                showStatus(error.message, true);
+                return;
+            }
+
+            await loadJobs(null);
+        });
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        await loadJobs(sessionData.session);
+
+        supabase.auth.onAuthStateChange((_event, session) => {
+            loadJobs(session);
+        });
+    </script>
 </body>
 </html>
