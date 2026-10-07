@@ -55,3 +55,14 @@ desktop.ini
 playwright-report/
 test-results/
 htmlcov/
+
+# Local AWS credentials and configuration
+.aws/
+
+# Local agent and workspace tool state
+.agents/
+.codex/
+
+# Additional Playwright reports and caches
+playwright/.cache/
+blob-report/

@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
+  <body class="auth-pending">
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#top" aria-label="Internship Lottery Home">
@@ -67,6 +67,24 @@
 
     <dialog id="application-modal" class="modal"><form method="dialog" id="application-form"><div class="modal-heading"><div><p class="eyebrow">Pipeline update</p><h2>Add application</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div><div class="form-grid"><label>Company<input name="company" required maxlength="80" placeholder="e.g. Linear" /></label><label>Role<input name="role" required maxlength="100" placeholder="e.g. Product Design Intern" /></label><label>Location<input name="location" maxlength="80" placeholder="e.g. Remote · US" /></label><label>Date applied<input name="date" type="date" required /></label><label>Status<select name="status"><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></label><label>Next step<input name="nextStep" maxlength="120" placeholder="e.g. Follow up next week" /></label><label class="full-width">Application URL<input name="url" type="url" placeholder="https://..." /></label><label class="full-width">Notes<textarea name="notes" rows="3" maxlength="500" placeholder="A quick note to your future self..."></textarea></label></div><div class="modal-actions"><button class="secondary-button" value="cancel">Cancel</button><button class="primary-button" value="default">Save application</button></div></form></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
-    <script src="app.js"></script>
+    <script type="module">
+      import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+      const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+      );
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) {
+        window.location.replace('login.html');
+      } else {
+        document.body.classList.remove('auth-pending');
+        const appScript = document.createElement('script');
+        appScript.src = 'app.js';
+        document.body.append(appScript);
+      }
+    </script>
   </body>
 </html>

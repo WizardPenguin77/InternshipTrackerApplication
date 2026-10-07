@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sign in to Internship Lottery." />
+    <title>Sign in · Internship Lottery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-card">
+      <a class="brand login-brand" href="index.html" aria-label="Internship Lottery Home">
+        <span class="brand-mark">✦</span>
+        <span>Internship Lottery</span>
+      </a>
+
+      <p class="eyebrow">Welcome back</p>
+      <h1>Sign in to your tracker</h1>
+      <p class="login-copy">Keep your applications and saved jobs in one place.</p>
+
+      <form id="login-form" class="login-form">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required />
+
+        <button class="primary-button" type="submit">Sign in</button>
+        <p id="login-message" class="login-message" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <script type="module">
+      import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+      const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+      );
+
+      const form = document.querySelector('#login-form');
+      const emailInput = document.querySelector('#email');
+      const passwordInput = document.querySelector('#password');
+      const message = document.querySelector('#login-message');
+      const submitButton = form.querySelector('button[type="submit"]');
+
+      function showMessage(text, isError = false) {
+        message.textContent = text;
+        message.classList.toggle('login-error', isError);
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submitButton.disabled = true;
+        showMessage('Signing in...');
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailInput.value.trim(),
+          password: passwordInput.value
+        });
+
+        if (error) {
+          showMessage(error.message, true);
+          submitButton.disabled = false;
+          return;
+        }
+
+        if (data.session) {
+          window.location.replace('index.html');
+        }
+      });
+    </script>
+  </body>
+</html>
