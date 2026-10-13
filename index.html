@@ -14,52 +14,47 @@
     <div class="app-shell">
       <aside class="sidebar">
         <a class="brand" href="#top" aria-label="Internship Lottery Home">
-          <span class="brand-mark">✦</span>
+          <span class="brand-mark">IL</span>
           <span>Internship Lottery</span>
         </a>
         <p class="eyebrow sidebar-label">Workspace</p>
         <nav class="nav" aria-label="Primary navigation">
-          <a class="nav-link active" href="#dashboard"><span>⌂</span> Dashboard</a>
-          <a class="nav-link" href="#applications"><span>▤</span> Applications <b id="nav-application-count">0</b></a>
-          <a class="nav-link" href="#jobs"><span>◈</span> Job board <b>new</b></a>
+          <a class="nav-link active" href="#dashboard">Dashboard</a>
+          <a class="nav-link" href="#applications">Applications <b id="nav-application-count">0</b></a>
+          <a class="nav-link" href="#jobs">Job board <b>new</b></a>
         </nav>
         <div class="sidebar-bottom">
-          <div class="tip-card">
-            <span class="tip-icon">✺</span>
-            <strong>dont cry</strong>
-            <p>drop and give me 10 applications</p>
-          </div>
-          <div class="profile"><span class="avatar">AJ</span><span><strong>Andrew Chung</strong><small>Job seeker</small></span><button aria-label="Profile menu">•••</button></div>
+          <div class="profile"><span class="avatar" id="profile-avatar">U</span><span><strong id="profile-name">User</strong><small>Job seeker</small></span><button id="profile-menu-toggle" class="profile-menu-toggle" aria-label="Profile menu" aria-expanded="false" aria-controls="profile-menu">•••</button><div id="profile-menu" class="profile-menu" hidden><button id="logout-button" type="button">Log out</button></div></div>
         </div>
       </aside>
 
       <main id="top" class="main-content">
-        <header class="topbar"><div class="mobile-brand"><span class="brand-mark">✦</span> Internship Lottery</div><div class="sync-status"><span class="status-dot"></span> Saved locally <span id="last-saved"></span></div></header>
+        <header class="topbar"><div class="mobile-brand"><span class="brand-mark">IL</span> Internship Lottery</div><div class="sync-status"><span class="status-dot"></span> Saved locally <span id="last-saved"></span></div></header>
 
         <section id="dashboard" class="hero">
-          <div><p class="eyebrow">Saturday, September 19, 2026</p><h1>Good morning, Andrew <span>✦</span></h1><p class="hero-copy">it's time to work.</p></div>
+          <div><p class="eyebrow">Saturday, September 19, 2026</p><h1>Good morning, <span id="user-name">there</span></h1></div>
           <button class="primary-button" data-open-modal="application-modal">＋ Add application</button>
         </section>
 
         <section class="stats-grid" aria-label="Application overview">
-          <article class="stat-card accent-card"><div class="stat-top"><span>Active applications</span><span class="stat-icon">↗</span></div><strong id="stat-active">0</strong><p><span class="trend">↑ <span id="stat-trend">0</span></span> from last week</p></article>
-          <article class="stat-card"><div class="stat-top"><span>Interviews</span><span class="stat-icon purple">◉</span></div><strong id="stat-interviews">0</strong><p>Keeep leetcoding.</p></article>
-          <article class="stat-card"><div class="stat-top"><span>Offers</span><span class="stat-icon yellow">★</span></div><strong id="stat-offers">0</strong><p>It isn't over.</p></article>
-          <article class="stat-card"><div class="stat-top"><span>Response rate</span><span class="stat-icon blue">%</span></div><strong id="stat-response">0%</strong><p>You'll be ghosted.</p></article>
+          <article class="stat-card accent-card"><div class="stat-top"><span>Active applications</span></div><strong id="stat-active">0</strong><p>Current pipeline</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Interviews</span></div><strong id="stat-interviews">0</strong><p>Scheduled interviews</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Offers</span></div><strong id="stat-offers">0</strong><p>Offers received</p></article>
+          <article class="stat-card"><div class="stat-top"><span>Response rate</span></div><strong id="stat-response">0%</strong><p>Applications with a response</p></article>
         </section>
 
         <div class="content-grid">
           <section id="applications" class="panel applications-panel">
             <div class="section-heading"><div><p class="eyebrow">Your pipeline</p><h2>Recent applications</h2></div><a href="#applications" class="text-link">View all <span>→</span></a></div>
-            <div class="toolbar"><label class="search-box"><span>⌕</span><input id="application-search" type="search" placeholder="Search applications" /></label><select id="status-filter" aria-label="Filter applications"><option value="All">All statuses</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
+            <div class="toolbar"><label class="search-box"><input id="application-search" type="search" placeholder="Search applications" /></label><select id="status-filter" aria-label="Filter applications"><option value="All">All statuses</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
             <div class="table-wrap"><table><thead><tr><th>Company & role</th><th>Status</th><th>Date applied</th><th>Next step</th><th aria-label="Actions"></th></tr></thead><tbody id="applications-body"></tbody></table><div id="empty-applications" class="empty-state" hidden>No applications match that search.</div></div>
           </section>
 
           <section id="jobs" class="panel jobs-panel">
-            <div class="section-heading"><div><p class="eyebrow">Recommended Listings</p><h2>Apply now!</h2></div><button id="refresh-jobs" class="icon-button" title="Refresh jobs">↻</button></div>
-            <div class="jobs-meta"><span class="live-pill"><i></i> Live feed</span><span id="job-refresh-label">Updated just now</span></div>
+            <div class="section-heading"><div><p class="eyebrow">Job board</p><h2>Available jobs</h2></div><button id="refresh-jobs" class="icon-button" title="Refresh jobs">Refresh</button></div>
+            <div class="jobs-meta"><span id="job-refresh-label">Updated just now</span></div>
             <div id="jobs-list" class="jobs-list"></div>
-            <p class="jobs-footnote">Apply on the original career website listing.</p>
+            <p class="jobs-footnote">Applications open on the employer's website.</p>
           </section>
         </div>
       </main>
@@ -80,6 +75,8 @@
       if (error || !data.session) {
         window.location.replace('login.html');
       } else {
+        window.supabaseClient = supabase;
+        window.currentUser = data.session.user;
         document.body.classList.remove('auth-pending');
         const appScript = document.createElement('script');
         appScript.src = 'app.js';

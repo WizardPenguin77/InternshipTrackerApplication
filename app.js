@@ -1,13 +1,6 @@
 const STORAGE_KEY = 'northstar-applications-v1';
 const JOBS_KEY = 'northstar-jobs-v1';
 
-const seedApplications = [
-  { id: '1', company: 'Vercel', role: 'Product Design Intern', location: 'Remote · US', date: '2026-09-17', status: 'Interview', nextStep: 'Portfolio review, Sep 24', url: 'https://vercel.com/careers', notes: '' },
-  { id: '2', company: 'Notion', role: 'Growth Marketing Intern', location: 'San Francisco, CA', date: '2026-09-15', status: 'Applied', nextStep: 'Follow up next week', url: 'https://www.notion.so/careers', notes: '' },
-  { id: '3', company: 'Figma', role: 'UX Research Intern', location: 'New York, NY', date: '2026-09-12', status: 'Applied', nextStep: 'Wait for response', url: 'https://www.figma.com/careers', notes: '' },
-  { id: '4', company: 'Linear', role: 'Product Intern', location: 'Remote · US', date: '2026-09-08', status: 'Rejected', nextStep: 'Keep looking', url: 'https://linear.app/careers', notes: '' },
-];
-
 // The UI consumes normalized jobs. A server-side Greenhouse/Lever adapter can
 // provide this same shape without coupling browser code to an ATS HTML page.
 const seedJobs = [
@@ -17,7 +10,8 @@ const seedJobs = [
 ];
 
 const $ = (selector) => document.querySelector(selector);
-let applications = load(STORAGE_KEY, seedApplications);
+const supabase = window.supabaseClient;
+let applications = [];
 let jobs = load(JOBS_KEY, seedJobs);
 
 function load(key, fallback) {
@@ -29,6 +23,66 @@ function saveApplications() {
   $('#last-saved').textContent = '· just now';
 }
 
+function getDisplayName(user) {
+  const metadata = user?.user_metadata || {};
+  return metadata.username || metadata.full_name || metadata.name || metadata.user_name || user?.email?.split('@')[0] || 'there';
+}
+
+function renderUser() {
+  const displayName = getDisplayName(window.currentUser);
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  $('#user-name').textContent = displayName;
+  $('#profile-name').textContent = displayName;
+  $('#profile-avatar').textContent = initials;
+}
+
+function normalizeApplication(row) {
+  return {
+    id: row.id,
+    company: row.company || 'Unknown company',
+    role: row.role || 'Untitled role',
+    location: row.location || '',
+    date: row.application_date || row.created_at?.slice(0, 10),
+    status: row.status,
+    nextStep: row.next_step || '',
+    url: row.applicaion_url || '',
+    notes: row.notes || ''
+  };
+}
+
+async function loadApplications() {
+  const { data: sessionData } = await supabase.auth.getSession();
+
+  if (!sessionData.session) {
+    window.location.replace('login.html');
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from('user_jobs')
+    .select('*')
+    .eq('user_id', sessionData.session.user.id)
+    .in('status', ['Applied', 'Interview', 'Offer', 'Rejected'])
+    .order('application_date', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.error('user_jobs query failed:', error);
+    applications = [];
+    toast('Could not load your applications.');
+    return;
+  }
+
+  applications = data.map(normalizeApplication);
+  $('#last-saved').textContent = '· synced';
+}
+
 function renderStats() {
   const active = applications.filter((item) => !['Rejected', 'Offer'].includes(item.status)).length;
   const interviews = applications.filter((item) => item.status === 'Interview').length;
@@ -38,22 +92,22 @@ function renderStats() {
   $('#stat-interviews').textContent = interviews;
   $('#stat-offers').textContent = offers;
   $('#stat-response').textContent = applications.length ? `${Math.round((responded / applications.length) * 100)}%` : '0%';
-  $('#stat-trend').textContent = Math.min(applications.length, 3);
   $('#nav-application-count').textContent = applications.length;
 }
 
 function renderApplications() {
   const search = $('#application-search').value.toLowerCase().trim();
   const filter = $('#status-filter').value;
-  const visible = applications.filter((item) => {
+  const filtered = applications.filter((item) => {
     const matchesSearch = [item.company, item.role, item.location].join(' ').toLowerCase().includes(search);
     return matchesSearch && (filter === 'All' || item.status === filter);
   });
+  const visible = filtered.slice(0, 5);
   $('#applications-body').innerHTML = visible.map((item) => `
     <tr><td><div class="company-cell"><span class="company-logo">${escapeHtml(item.company.slice(0, 2).toUpperCase())}</span><div><strong>${escapeHtml(item.company)}</strong><div class="role">${escapeHtml(item.role)}</div></div></div></td>
     <td><select class="status ${item.status === 'Applied' ? 'status-Applied' : `status-${item.status}`}" data-status-id="${item.id}" aria-label="Change ${escapeHtml(item.company)} status">${['Applied','Interview','Offer','Rejected'].map((status) => `<option ${status === item.status ? 'selected' : ''}>${status}</option>`).join('')}</select></td>
     <td class="date-cell">${formatDate(item.date)}</td><td class="next-step">${escapeHtml(item.nextStep || '—')}</td><td><button class="row-actions" data-delete-id="${item.id}" aria-label="Delete ${escapeHtml(item.company)}">•••</button></td></tr>`).join('');
-  $('#empty-applications').hidden = visible.length !== 0;
+  $('#empty-applications').hidden = filtered.length !== 0;
 }
 
 function renderJobs() {
@@ -84,9 +138,46 @@ document.addEventListener('click', (event) => {
   if (deleteButton) { applications = applications.filter((item) => item.id !== deleteButton.dataset.deleteId); saveApplications(); renderStats(); renderApplications(); toast('Application removed.'); }
 });
 
+const profileMenuToggle = $('#profile-menu-toggle');
+const profileMenu = $('#profile-menu');
+
+profileMenuToggle.addEventListener('click', (event) => {
+  event.stopPropagation();
+  const isOpen = !profileMenu.hidden;
+  profileMenu.hidden = isOpen;
+  profileMenuToggle.setAttribute('aria-expanded', String(!isOpen));
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('#profile-menu') && !event.target.closest('#profile-menu-toggle')) {
+    profileMenu.hidden = true;
+    profileMenuToggle.setAttribute('aria-expanded', 'false');
+  }
+});
+
+$('#logout-button').addEventListener('click', async () => {
+  const { error } = await supabase.auth.signOut();
+
+  if (error) {
+    toast('Could not log out.');
+    console.error('Logout failed:', error);
+    return;
+  }
+
+  window.location.replace('login.html');
+});
+
 document.querySelectorAll('[data-open-modal]').forEach((button) => button.addEventListener('click', () => { $('#application-form').elements.date.value = new Date().toISOString().slice(0, 10); $('#application-modal').showModal(); }));
 $('#application-search').addEventListener('input', renderApplications);
 $('#status-filter').addEventListener('change', renderApplications);
 $('#refresh-jobs').addEventListener('click', () => { $('#job-refresh-label').textContent = 'Updated just now'; toast('Job feed is up to date.'); });
 
-renderStats(); renderApplications(); renderJobs();
+async function initializeApp() {
+  renderUser();
+  await loadApplications();
+  renderStats();
+  renderApplications();
+  renderJobs();
+}
+
+initializeApp();

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Create an Internship Lottery account." />
+    <title>Sign up · Internship Lottery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-card">
+      <a class="brand login-brand" href="index.html" aria-label="Internship Lottery Home">
+        <span class="brand-mark">IL</span>
+        <span>Internship Lottery</span>
+      </a>
+
+      <p class="eyebrow">Get started</p>
+      <h1>Create your account</h1>
+      <p class="login-copy">Start tracking your internship applications and saved jobs.</p>
+
+      <form id="signup-form" class="login-form">
+        <label for="username">Username</label>
+        <input id="username" type="text" autocomplete="nickname" required maxlength="40" />
+
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="new-password" required minlength="6" />
+
+        <label for="confirm-password">Confirm password</label>
+        <input id="confirm-password" type="password" autocomplete="new-password" required minlength="6" />
+
+        <button class="primary-button" type="submit">Create account</button>
+        <p id="signup-message" class="login-message" role="status" aria-live="polite"></p>
+      </form>
+      <div class="auth-divider"><span>or</span></div>
+      <button id="google-signup" class="google-button" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.35 12.27c0-.77-.07-1.51-.22-2.22H12v4.2h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.7 2.91-4.2 2.91-7.37Z"/><path fill="#34A853" d="M12 21.5c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.75 9.75 0 0 0 12 21.5Z"/><path fill="#FBBC05" d="M6.54 13.58A5.86 5.86 0 0 1 6.23 12c0-.55.1-1.08.31-1.58V7.9H3.3A9.52 9.52 0 0 0 2.25 12c0 1.48.36 2.88 1.05 4.1l3.24-2.52Z"/><path fill="#EA4335" d="M12 6.39c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.46 14.63 2.5 12 2.5a9.75 9.75 0 0 0-8.7 5.4l3.24 2.52C7.31 8.11 9.46 6.39 12 6.39Z"/></svg>
+        <span>Sign up with Google</span>
+      </button>
+      <p class="login-switch">Already have an account? <a class="login-link" href="login.html">Sign in</a></p>
+    </main>
+
+    <script type="module">
+      import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+      const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+      );
+
+      const form = document.querySelector('#signup-form');
+      const usernameInput = document.querySelector('#username');
+      const emailInput = document.querySelector('#email');
+      const passwordInput = document.querySelector('#password');
+      const confirmPasswordInput = document.querySelector('#confirm-password');
+      const message = document.querySelector('#signup-message');
+      const submitButton = form.querySelector('button[type="submit"]');
+      const googleButton = document.querySelector('#google-signup');
+
+      function showMessage(text, isError = false) {
+        message.textContent = text;
+        message.classList.toggle('login-error', isError);
+      }
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        if (passwordInput.value !== confirmPasswordInput.value) {
+          showMessage('Passwords do not match.', true);
+          return;
+        }
+
+        submitButton.disabled = true;
+        showMessage('Creating your account...');
+
+        const { data, error } = await supabase.auth.signUp({
+          email: emailInput.value.trim(),
+          password: passwordInput.value,
+          options: {
+            data: {
+              username: usernameInput.value.trim()
+            },
+            emailRedirectTo: `${window.location.origin}/index.html`
+          }
+        });
+
+        if (error) {
+          showMessage(error.message, true);
+          submitButton.disabled = false;
+          return;
+        }
+
+        if (data.session) {
+          window.location.replace('index.html');
+          return;
+        }
+
+        showMessage('Account created. Check your email to confirm your account before signing in.');
+        submitButton.disabled = false;
+      });
+
+      googleButton.addEventListener('click', async () => {
+        googleButton.disabled = true;
+        showMessage('Redirecting to Google...');
+
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/index.html`
+          }
+        });
+
+        if (error) {
+          showMessage(error.message, true);
+          googleButton.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>
