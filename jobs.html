@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Browse internship opportunities on Internship Lottery." />
+    <title>Job Board · Internship Lottery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-pending">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="Internship Lottery Home">
+          <span class="brand-mark">IL</span>
+          <span>Internship Lottery</span>
+        </a>
+        <p class="eyebrow sidebar-label">Workspace</p>
+        <nav class="nav" aria-label="Primary navigation">
+          <a class="nav-link" href="index.html">Dashboard</a>
+          <a class="nav-link" href="applications.html">Applications <b id="nav-application-count">—</b></a>
+          <a class="nav-link active" href="jobs.html">Job board <b>new</b></a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="profile">
+            <span class="avatar" id="profile-avatar">U</span>
+            <span><strong id="profile-name">User</strong><small>Job seeker</small></span>
+            <button id="profile-menu-toggle" class="profile-menu-toggle" aria-label="Profile menu" aria-expanded="false" aria-controls="profile-menu">•••</button>
+            <div id="profile-menu" class="profile-menu" hidden><button id="logout-button" type="button">Log out</button></div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-content jobs-page">
+        <header class="applications-header">
+          <div class="mobile-brand"><span class="brand-mark">IL</span> Internship Lottery</div>
+          <a class="text-link" href="index.html">Dashboard</a>
+        </header>
+
+        <section class="panel jobs-board-panel">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Job board</p>
+              <h1>Find your next opportunity</h1>
+            </div>
+            <span id="jobs-count" class="applications-count">Loading jobs…</span>
+          </div>
+          <p id="jobs-message" class="jobs-message" role="status" aria-live="polite"></p>
+          <div id="jobs-list" class="jobs-list"></div>
+          <div id="jobs-empty" class="empty-state" hidden>No jobs are available yet.</div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module">
+      import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+      const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+      );
+
+      const jobsList = document.querySelector('#jobs-list');
+      const jobsCount = document.querySelector('#jobs-count');
+      const jobsMessage = document.querySelector('#jobs-message');
+      const jobsEmpty = document.querySelector('#jobs-empty');
+
+      function escapeHtml(value = '') {
+        return String(value).replace(/[&<>'"]/g, (character) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[character]));
+      }
+
+      function safeUrl(value = '') {
+        try {
+          const url = new URL(value);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
+        } catch {
+          return '#';
+        }
+      }
+
+      function formatDate(value) {
+        if (!value) return 'Date unavailable';
+        const date = new Date(value);
+        return Number.isNaN(date.getTime())
+          ? 'Date unavailable'
+          : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+      }
+
+      function renderJobs(jobs) {
+        jobsList.innerHTML = jobs.map((job) => {
+          const url = safeUrl(job.application_url);
+          const link = url === '#'
+            ? '<span class="jobs-card-link unavailable">Link unavailable</span>'
+            : `<a class="jobs-card-link" href="${url}" target="_blank" rel="noreferrer">View listing ↗</a>`;
+
+          return `<article class="job-card database-job-card">
+            <div class="job-top">
+              <span class="job-logo">${escapeHtml((job.company || '??').slice(0, 2).toUpperCase())}</span>
+              <div><h2 class="job-title">${escapeHtml(job.role || 'Untitled role')}</h2><div class="job-company">${escapeHtml(job.company || 'Unknown company')}</div></div>
+              <time class="job-date">${formatDate(job.posted_at)}</time>
+            </div>
+            <div class="job-details"><span>⌖ ${escapeHtml(job.location || 'Unspecified')}</span>${link}</div>
+          </article>`;
+        }).join('');
+        jobsCount.textContent = `${jobs.length} ${jobs.length === 1 ? 'job' : 'jobs'}`;
+        jobsEmpty.hidden = jobs.length !== 0;
+      }
+
+      function getDisplayName(user) {
+        const metadata = user?.user_metadata || {};
+        return metadata.username || metadata.full_name || metadata.name || metadata.user_name || user?.email?.split('@')[0] || 'there';
+      }
+
+      const { data, error } = await supabase.auth.getSession();
+      if (error || !data.session) {
+        window.location.replace('login.html');
+      } else {
+        const displayName = getDisplayName(data.session.user);
+        document.querySelector('#profile-name').textContent = displayName;
+        document.querySelector('#profile-avatar').textContent = displayName.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+        document.body.classList.remove('auth-pending');
+
+        const { data: jobs, error: jobsError } = await supabase
+          .from('jobs')
+          .select('id, provider, provider_id, company, role, location, application_url, posted_at, is_active')
+          .eq('is_active', true)
+          .order('posted_at', { ascending: false, nullsFirst: false })
+          .limit(50);
+
+        if (jobsError) {
+          console.error('Jobs query failed:', jobsError);
+          jobsCount.textContent = 'Unavailable';
+          jobsMessage.textContent = 'Could not load jobs right now.';
+          jobsMessage.classList.add('jobs-message-error');
+        } else {
+          renderJobs(jobs || []);
+        }
+      }
+
+      const profileMenuToggle = document.querySelector('#profile-menu-toggle');
+      const profileMenu = document.querySelector('#profile-menu');
+      profileMenuToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isOpen = !profileMenu.hidden;
+        profileMenu.hidden = isOpen;
+        profileMenuToggle.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('#profile-menu') && !event.target.closest('#profile-menu-toggle')) {
+          profileMenu.hidden = true;
+          profileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.querySelector('#logout-button').addEventListener('click', async () => {
+        const { error: logoutError } = await supabase.auth.signOut();
+        if (!logoutError) window.location.replace('login.html');
+      });
+    </script>
+  </body>
+</html>
