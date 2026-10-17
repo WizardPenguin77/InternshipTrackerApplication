@@ -1,4 +1,3 @@
-const STORAGE_KEY = 'northstar-applications-v1';
 const JOBS_KEY = 'northstar-jobs-v1';
 
 // The UI consumes normalized jobs. A server-side Greenhouse/Lever adapter can
@@ -16,11 +15,6 @@ let jobs = load(JOBS_KEY, seedJobs);
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; }
-}
-
-function saveApplications() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-  $('#last-saved').textContent = '· just now';
 }
 
 function getDisplayName(user) {
@@ -52,7 +46,7 @@ function normalizeApplication(row) {
     date: row.application_date || row.created_at?.slice(0, 10),
     status: row.status,
     nextStep: row.next_step || '',
-    url: row.applicaion_url || '',
+    url: row.applicaion_url || row.application_url || '',
     notes: row.notes || ''
   };
 }
@@ -110,6 +104,21 @@ function renderApplications() {
   $('#empty-applications').hidden = filtered.length !== 0;
 }
 
+function applicationPayload(data) {
+  return {
+    user_id: window.currentUser.id,
+    is_saved: false,
+    status: data.status,
+    application_date: data.date || null,
+    notes: data.notes || null,
+    next_step: data.nextStep || null,
+    company: data.company.trim(),
+    role: data.role.trim(),
+    location: data.location.trim() || null,
+    application_url: data.url.trim() || null
+  };
+}
+
 function renderJobs() {
   $('#jobs-list').innerHTML = jobs.map((job) => `<article class="job-card"><div class="job-top"><span class="job-logo">${escapeHtml(job.initials)}</span><div><h3 class="job-title">${escapeHtml(job.role)}</h3><div class="job-company">${escapeHtml(job.company)}</div></div><time class="job-date">${escapeHtml(job.posted)}</time></div><div class="job-details"><span>⌖ ${escapeHtml(job.location)}</span><a href="${safeUrl(job.url)}" target="_blank" rel="noreferrer">View listing ↗</a></div></article>`).join('');
 }
@@ -119,23 +128,85 @@ function escapeHtml(value = '') { return String(value).replace(/[&<>'"]/g, (char
 function safeUrl(value = '') { try { const url = new URL(value); return ['http:', 'https:'].includes(url.protocol) ? url.href : '#'; } catch { return '#'; } }
 function toast(message) { const element = $('#toast'); element.textContent = message; element.classList.add('show'); setTimeout(() => element.classList.remove('show'), 2400); }
 
-$('#application-form').addEventListener('submit', (event) => {
+$('#application-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget));
-  applications.unshift({ ...data, id: crypto.randomUUID() });
-  saveApplications(); renderStats(); renderApplications(); event.currentTarget.reset(); $('#application-modal').close(); toast('Application saved to your pipeline.');
+  const { data: inserted, error } = await supabase
+    .from('user_jobs')
+    .insert(applicationPayload(data))
+    .select()
+    .single();
+
+  if (error) {
+    console.error('user_jobs insert failed:', error);
+    toast('Could not save the application.');
+    return;
+  }
+
+  applications.unshift(normalizeApplication(inserted));
+  renderStats();
+  renderApplications();
+  event.currentTarget.reset();
+  $('#application-modal').close();
+  $('#last-saved').textContent = '· synced';
+  toast('Application saved.');
 });
 
-document.addEventListener('change', (event) => {
+$('#close-application-button').addEventListener('click', () => $('#application-modal').close());
+$('#cancel-application-button').addEventListener('click', () => $('#application-modal').close());
+
+document.addEventListener('change', async (event) => {
   if (event.target.matches('[data-status-id]')) {
     const application = applications.find((item) => item.id === event.target.dataset.statusId);
-    if (application) { application.status = event.target.value; saveApplications(); renderStats(); renderApplications(); toast(`${application.company} moved to ${application.status}.`); }
+    if (!application) return;
+
+    const previousStatus = application.status;
+    const nextStatus = event.target.value;
+    const { error } = await supabase
+      .from('user_jobs')
+      .update({ status: nextStatus })
+      .eq('id', application.id)
+      .eq('user_id', window.currentUser.id);
+
+    if (error) {
+      console.error('user_jobs status update failed:', error);
+      event.target.value = previousStatus;
+      toast('Could not update the status.');
+      return;
+    }
+
+    application.status = nextStatus;
+    renderStats();
+    renderApplications();
+    $('#last-saved').textContent = '· synced';
+    toast(`${application.company} moved to ${application.status}.`);
   }
 });
 
-document.addEventListener('click', (event) => {
+document.addEventListener('click', async (event) => {
   const deleteButton = event.target.closest('[data-delete-id]');
-  if (deleteButton) { applications = applications.filter((item) => item.id !== deleteButton.dataset.deleteId); saveApplications(); renderStats(); renderApplications(); toast('Application removed.'); }
+  if (!deleteButton) return;
+
+  const application = applications.find((item) => item.id === deleteButton.dataset.deleteId);
+  if (!application || !window.confirm(`Delete ${application.company}?`)) return;
+
+  const { error } = await supabase
+    .from('user_jobs')
+    .delete()
+    .eq('id', application.id)
+    .eq('user_id', window.currentUser.id);
+
+  if (error) {
+    console.error('user_jobs delete failed:', error);
+    toast('Could not delete the application.');
+    return;
+  }
+
+  applications = applications.filter((item) => item.id !== application.id);
+  renderStats();
+  renderApplications();
+  $('#last-saved').textContent = '· synced';
+  toast('Application removed.');
 });
 
 const profileMenuToggle = $('#profile-menu-toggle');

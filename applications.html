@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="View your Internship Lottery jobs." />
+    <title>Applications · Internship Lottery</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="auth-pending">
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="index.html" aria-label="Internship Lottery Home">
+          <span class="brand-mark">IL</span>
+          <span>Internship Lottery</span>
+        </a>
+        <p class="eyebrow sidebar-label">Workspace</p>
+        <nav class="nav" aria-label="Primary navigation">
+          <a class="nav-link" href="index.html">Dashboard</a>
+          <a class="nav-link active" href="applications.html">Applications <b id="nav-application-count">0</b></a>
+          <a class="nav-link" href="index.html#jobs">Job board <b>new</b></a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="profile"><span class="avatar" id="profile-avatar">U</span><span><strong id="profile-name">User</strong><small>Job seeker</small></span><button id="profile-menu-toggle" class="profile-menu-toggle" aria-label="Profile menu" aria-expanded="false" aria-controls="profile-menu">•••</button><div id="profile-menu" class="profile-menu" hidden><button id="logout-button" type="button">Log out</button></div></div>
+        </div>
+      </aside>
+
+      <main class="main-content applications-page">
+        <header class="applications-header">
+          <div class="mobile-brand"><span class="brand-mark">IL</span> Internship Lottery</div>
+          <a class="text-link" href="index.html">Dashboard</a>
+        </header>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">All tracked jobs</p>
+            <h1>Applications</h1>
+          </div>
+          <div class="applications-header-actions">
+            <span id="applications-count" class="applications-count">0 jobs</span>
+            <button id="add-job-button" class="primary-button" type="button">＋ Add Application</button>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <label class="search-box">
+            <input id="application-search" type="search" placeholder="Search jobs" />
+          </label>
+          <select id="status-filter" aria-label="Filter jobs by status">
+            <option value="All">All statuses</option>
+            <option>Saved</option>
+            <option>Applied</option>
+            <option>Interview</option>
+            <option>Offer</option>
+            <option>Rejected</option>
+          </select>
+        </div>
+        <p id="applications-message" class="applications-message" role="status" aria-live="polite"></p>
+
+        <div class="table-wrap">
+          <table class="applications-table">
+            <thead>
+              <tr>
+                <th>Company &amp; role</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Application date</th>
+                <th>Next step</th>
+                <th>Link</th>
+                <th aria-label="Actions"></th>
+              </tr>
+            </thead>
+            <tbody id="applications-body"></tbody>
+          </table>
+          <div id="empty-applications" class="empty-state" hidden>No jobs match this search.</div>
+        </div>
+      </section>
+      </main>
+    </div>
+
+    <dialog id="job-modal" class="modal">
+      <form id="job-form" method="dialog">
+        <div class="modal-heading">
+          <div>
+            <p class="eyebrow">Application details</p>
+            <h2 id="job-modal-title">Add Application</h2>
+          </div>
+          <button id="close-job-button" class="close-button" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="form-grid">
+          <label>Company<input name="company" required maxlength="80" placeholder="e.g. Linear" /></label>
+          <label>Role<input name="role" required maxlength="100" placeholder="e.g. Product Design Intern" /></label>
+          <label>Location<input name="location" maxlength="80" placeholder="e.g. Remote · US" /></label>
+          <label>Application date<input name="applicationDate" type="date" /></label>
+          <label>Status<select name="status"><option>Saved</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></label>
+          <label>Next step<input name="nextStep" maxlength="120" placeholder="e.g. Follow up next week" /></label>
+          <label class="full-width">Application URL<input name="applicationUrl" type="url" placeholder="https://..." /></label>
+          <label class="full-width">Notes<textarea name="notes" rows="3" maxlength="500" placeholder="A quick note to your future self..."></textarea></label>
+        </div>
+        <div class="modal-actions">
+          <button id="cancel-job-button" class="secondary-button" type="button">Cancel</button>
+          <button id="save-job-button" class="primary-button" value="default">Save job</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module">
+      import { createClient } from
+        'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+      const supabase = createClient(
+        'https://hemcyspyolpvrlghwozj.supabase.co',
+        'sb_publishable_a5L98DxxA6JnipbhI9_9yw_SCjFjGEJ'
+      );
+
+      const body = document.querySelector('body');
+      const applicationsBody = document.querySelector('#applications-body');
+      const emptyState = document.querySelector('#empty-applications');
+      const countElement = document.querySelector('#applications-count');
+      const searchInput = document.querySelector('#application-search');
+      const statusFilter = document.querySelector('#status-filter');
+      const profileMenuToggle = document.querySelector('#profile-menu-toggle');
+      const profileMenu = document.querySelector('#profile-menu');
+      const jobModal = document.querySelector('#job-modal');
+      const jobForm = document.querySelector('#job-form');
+      const jobModalTitle = document.querySelector('#job-modal-title');
+      const applicationsMessage = document.querySelector('#applications-message');
+      let editingJobId = null;
+      let currentUserId = null;
+      let jobs = [];
+
+      function getDisplayName(user) {
+        const metadata = user?.user_metadata || {};
+        return metadata.username || metadata.full_name || metadata.name || metadata.user_name || user?.email?.split('@')[0] || 'there';
+      }
+
+      function renderUser(user) {
+        const displayName = getDisplayName(user);
+        const initials = displayName.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
+        document.querySelector('#profile-name').textContent = displayName;
+        document.querySelector('#profile-avatar').textContent = initials;
+      }
+
+      function escapeHtml(value = '') {
+        return String(value).replace(/[&<>'"]/g, (character) => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[character]));
+      }
+
+      function safeUrl(value = '') {
+        try {
+          const url = new URL(value);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
+        } catch {
+          return '#';
+        }
+      }
+
+      function formatDate(value) {
+        if (!value) return '—';
+        const date = new Date(`${value}T12:00:00`);
+        return Number.isNaN(date.getTime())
+          ? '—'
+          : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+      }
+
+      function statusClass(status) {
+        return ['Saved', 'Applied', 'Interview', 'Offer', 'Rejected'].includes(status)
+          ? `status-${status}`
+          : 'status-unknown';
+      }
+
+      function inputValue(value = '') {
+        return escapeHtml(value ?? '');
+      }
+
+      function openJobForm(job = null) {
+        editingJobId = job?.id || null;
+        jobModalTitle.textContent = job ? 'Edit Application' : 'Add Application';
+        document.querySelector('#save-job-button').textContent = job ? 'Save changes' : 'Add Application';
+        jobForm.elements.company.value = job?.company || '';
+        jobForm.elements.role.value = job?.role || '';
+        jobForm.elements.location.value = job?.location || '';
+        jobForm.elements.applicationDate.value = job?.application_date || job?.created_at?.slice(0, 10) || '';
+        jobForm.elements.status.value = job?.status || (job?.is_saved ? 'Saved' : 'Applied');
+        jobForm.elements.nextStep.value = job?.next_step || '';
+        jobForm.elements.applicationUrl.value = job?.application_url || '';
+        jobForm.elements.notes.value = job?.notes || '';
+        jobModal.showModal();
+      }
+
+      function showMessage(message, isError = false) {
+        applicationsMessage.textContent = message;
+        applicationsMessage.classList.toggle('applications-message-error', isError);
+      }
+
+      function editableJobFields(values) {
+        return {
+          status: values.status === 'Saved' ? null : values.status,
+          is_saved: values.status === 'Saved',
+          application_date: values.applicationDate || null,
+          notes: values.notes || null,
+          next_step: values.nextStep || null,
+          company: values.company.trim(),
+          role: values.role.trim(),
+          location: values.location.trim() || null,
+          application_url: values.applicationUrl.trim() || null
+        };
+      }
+
+      function newJobPayload(values) {
+        return {
+          user_id: currentUserId,
+          is_saved: values.status === 'Saved',
+          ...editableJobFields(values)
+        };
+      }
+
+      function renderJobs() {
+        const search = searchInput.value.toLowerCase().trim();
+        const filter = statusFilter.value;
+        const visible = jobs.filter((job) => {
+          const displayStatus = job.status || (job.is_saved ? 'Saved' : 'Unknown');
+          const searchable = [job.company, job.role, job.location, displayStatus].join(' ').toLowerCase();
+          return searchable.includes(search) && (filter === 'All' || displayStatus === filter);
+        });
+
+        applicationsBody.innerHTML = visible.map((job) => {
+          const displayStatus = job.status || (job.is_saved ? 'Saved' : 'Unknown');
+          const url = safeUrl(job.application_url);
+          const link = url === '#'
+            ? '—'
+            : `<a href="${url}" target="_blank" rel="noreferrer">Open</a>`;
+
+          return `<tr>
+            <td><div class="company-cell"><span class="company-logo">${escapeHtml((job.company || '??').slice(0, 2).toUpperCase())}</span><div><strong>${escapeHtml(job.company || 'Unknown company')}</strong><div class="role">${escapeHtml(job.role || 'Untitled role')}</div></div></div></td>
+            <td class="date-cell">${escapeHtml(job.location || '—')}</td>
+            <td><select class="status status-select ${statusClass(displayStatus)}" data-status-id="${inputValue(job.id)}" aria-label="Change ${escapeHtml(job.company || 'job')} status">${['Saved', 'Applied', 'Interview', 'Offer', 'Rejected'].map((status) => `<option ${status === displayStatus ? 'selected' : ''}>${status}</option>`).join('')}</select></td>
+            <td class="date-cell">${formatDate(job.application_date || job.created_at?.slice(0, 10))}</td>
+            <td class="next-step">${escapeHtml(job.next_step || '—')}</td>
+            <td>${link}</td>
+            <td class="application-actions"><button class="edit-button" type="button" data-edit-id="${inputValue(job.id)}" aria-label="Edit ${escapeHtml(job.company || 'job')}" title="Edit">✎</button><button class="delete-button" type="button" data-delete-id="${inputValue(job.id)}" aria-label="Delete ${escapeHtml(job.company || 'job')}" title="Delete">×</button></td>
+          </tr>`;
+        }).join('');
+
+        countElement.textContent = `${visible.length} ${visible.length === 1 ? 'job' : 'jobs'}`;
+        document.querySelector('#nav-application-count').textContent = jobs.length;
+        emptyState.hidden = visible.length !== 0;
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        window.location.replace('login.html');
+      } else {
+        body.classList.remove('auth-pending');
+        currentUserId = sessionData.session.user.id;
+        renderUser(sessionData.session.user);
+
+        const { data, error } = await supabase
+          .from('user_jobs')
+          .select('*')
+          .eq('user_id', sessionData.session.user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Applications query failed:', error);
+          applicationsBody.innerHTML = '<tr><td colspan="7" class="empty-state">Could not load your jobs.</td></tr>';
+        } else {
+          jobs = data || [];
+          renderJobs();
+        }
+      }
+
+      searchInput.addEventListener('input', renderJobs);
+      statusFilter.addEventListener('change', renderJobs);
+
+      document.querySelector('#add-job-button').addEventListener('click', () => openJobForm());
+      document.querySelector('#close-job-button').addEventListener('click', () => jobModal.close());
+      document.querySelector('#cancel-job-button').addEventListener('click', () => jobModal.close());
+      
+      applicationsBody.addEventListener('change', (event) => {
+        if (!event.target.matches('[data-status-id]')) return;
+        const job = jobs.find((item) => String(item.id) === event.target.dataset.statusId);
+        if (!job) return;
+        const previousStatus = job.status;
+        const nextStatus = event.target.value;
+        supabase
+          .from('user_jobs')
+          .update({ status: nextStatus === 'Saved' ? null : nextStatus, is_saved: nextStatus === 'Saved' })
+          .eq('id', job.id)
+          .eq('user_id', currentUserId)
+          .then(({ error }) => {
+            if (error) {
+              console.error('user_jobs status update failed:', error);
+              event.target.value = previousStatus;
+              showMessage('Could not update the status.', true);
+              return;
+            }
+            job.status = nextStatus === 'Saved' ? null : nextStatus;
+            job.is_saved = nextStatus === 'Saved';
+            renderJobs();
+            showMessage('Status updated.');
+          });
+      });
+
+      applicationsBody.addEventListener('click', async (event) => {
+        const editButton = event.target.closest('[data-edit-id]');
+        if (editButton) {
+          const job = jobs.find((item) => String(item.id) === editButton.dataset.editId);
+          if (job) openJobForm(job);
+          return;
+        }
+
+        const deleteButton = event.target.closest('[data-delete-id]');
+        if (!deleteButton) return;
+        const job = jobs.find((item) => String(item.id) === deleteButton.dataset.deleteId);
+        if (!job || !window.confirm(`Delete ${job.company || 'this job'}?`)) return;
+
+        const { error } = await supabase
+          .from('user_jobs')
+          .delete()
+          .eq('id', job.id)
+          .eq('user_id', currentUserId);
+
+        if (error) {
+          console.error('user_jobs delete failed:', error);
+          showMessage('Could not delete the job.', true);
+          return;
+        }
+
+        jobs = jobs.filter((item) => item.id !== job.id);
+        renderJobs();
+        showMessage('Job deleted.');
+      });
+
+      jobForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(jobForm);
+        const values = Object.fromEntries(formData.entries());
+        const job = editingJobId
+          ? jobs.find((item) => String(item.id) === String(editingJobId))
+          : null;
+
+        if (job) {
+          const { data: updated, error } = await supabase
+            .from('user_jobs')
+            .update(editableJobFields(values))
+            .eq('id', job.id)
+            .eq('user_id', currentUserId)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('user_jobs update failed:', error);
+            showMessage('Could not save the job changes.', true);
+            return;
+          }
+
+          Object.assign(job, updated);
+          showMessage('Job changes saved.');
+        } else {
+          const { data: inserted, error } = await supabase
+            .from('user_jobs')
+            .insert(newJobPayload(values))
+            .select()
+            .single();
+
+          if (error) {
+            console.error('user_jobs insert failed:', error);
+            showMessage('Could not add the job.', true);
+            return;
+          }
+
+          jobs.unshift(inserted);
+          showMessage('Job added.');
+        }
+
+        renderJobs();
+        jobModal.close();
+      });
+
+      profileMenuToggle.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isOpen = !profileMenu.hidden;
+        profileMenu.hidden = isOpen;
+        profileMenuToggle.setAttribute('aria-expanded', String(!isOpen));
+      });
+
+      document.addEventListener('click', (event) => {
+        if (!event.target.closest('#profile-menu') && !event.target.closest('#profile-menu-toggle')) {
+          profileMenu.hidden = true;
+          profileMenuToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      document.querySelector('#logout-button').addEventListener('click', async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error('Logout failed:', error);
+          return;
+        }
+        window.location.replace('login.html');
+      });
+    </script>
+  </body>
+</html>

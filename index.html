@@ -20,7 +20,7 @@
         <p class="eyebrow sidebar-label">Workspace</p>
         <nav class="nav" aria-label="Primary navigation">
           <a class="nav-link active" href="#dashboard">Dashboard</a>
-          <a class="nav-link" href="#applications">Applications <b id="nav-application-count">0</b></a>
+          <a class="nav-link" href="applications.html">Applications <b id="nav-application-count">0</b></a>
           <a class="nav-link" href="#jobs">Job board <b>new</b></a>
         </nav>
         <div class="sidebar-bottom">
@@ -45,7 +45,7 @@
 
         <div class="content-grid">
           <section id="applications" class="panel applications-panel">
-            <div class="section-heading"><div><p class="eyebrow">Your pipeline</p><h2>Recent applications</h2></div><a href="#applications" class="text-link">View all <span>→</span></a></div>
+            <div class="section-heading"><div><p class="eyebrow">Your pipeline</p><h2>Recent applications</h2></div><a href="applications.html" class="text-link">View all <span>→</span></a></div>
             <div class="toolbar"><label class="search-box"><input id="application-search" type="search" placeholder="Search applications" /></label><select id="status-filter" aria-label="Filter applications"><option value="All">All statuses</option><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></div>
             <div class="table-wrap"><table><thead><tr><th>Company & role</th><th>Status</th><th>Date applied</th><th>Next step</th><th aria-label="Actions"></th></tr></thead><tbody id="applications-body"></tbody></table><div id="empty-applications" class="empty-state" hidden>No applications match that search.</div></div>
           </section>
@@ -60,7 +60,7 @@
       </main>
     </div>
 
-    <dialog id="application-modal" class="modal"><form method="dialog" id="application-form"><div class="modal-heading"><div><p class="eyebrow">Pipeline update</p><h2>Add application</h2></div><button class="close-button" value="cancel" aria-label="Close">×</button></div><div class="form-grid"><label>Company<input name="company" required maxlength="80" placeholder="e.g. Linear" /></label><label>Role<input name="role" required maxlength="100" placeholder="e.g. Product Design Intern" /></label><label>Location<input name="location" maxlength="80" placeholder="e.g. Remote · US" /></label><label>Date applied<input name="date" type="date" required /></label><label>Status<select name="status"><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></label><label>Next step<input name="nextStep" maxlength="120" placeholder="e.g. Follow up next week" /></label><label class="full-width">Application URL<input name="url" type="url" placeholder="https://..." /></label><label class="full-width">Notes<textarea name="notes" rows="3" maxlength="500" placeholder="A quick note to your future self..."></textarea></label></div><div class="modal-actions"><button class="secondary-button" value="cancel">Cancel</button><button class="primary-button" value="default">Save application</button></div></form></dialog>
+    <dialog id="application-modal" class="modal"><form method="dialog" id="application-form"><div class="modal-heading"><div><p class="eyebrow">Pipeline update</p><h2>Add application</h2></div><button id="close-application-button" class="close-button" type="button" aria-label="Close">×</button></div><div class="form-grid"><label>Company<input name="company" required maxlength="80" placeholder="e.g. Linear" /></label><label>Role<input name="role" required maxlength="100" placeholder="e.g. Product Design Intern" /></label><label>Location<input name="location" maxlength="80" placeholder="e.g. Remote · US" /></label><label>Date applied<input name="date" type="date" required /></label><label>Status<select name="status"><option>Applied</option><option>Interview</option><option>Offer</option><option>Rejected</option></select></label><label>Next step<input name="nextStep" maxlength="120" placeholder="e.g. Follow up next week" /></label><label class="full-width">Application URL<input name="url" type="url" placeholder="https://..." /></label><label class="full-width">Notes<textarea name="notes" rows="3" maxlength="500" placeholder="A quick note to your future self..."></textarea></label></div><div class="modal-actions"><button id="cancel-application-button" class="secondary-button" type="button">Cancel</button><button class="primary-button" value="default">Save application</button></div></form></dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script type="module">
       import { createClient } from
