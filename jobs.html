@@ -67,6 +67,8 @@
       const jobsCount = document.querySelector('#jobs-count');
       const jobsMessage = document.querySelector('#jobs-message');
       const jobsEmpty = document.querySelector('#jobs-empty');
+      let currentUserId = null;
+      let loadedJobs = [];
 
       function escapeHtml(value = '') {
         return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -96,11 +98,12 @@
       }
 
       function renderJobs(jobs) {
+        loadedJobs = jobs;
         jobsList.innerHTML = jobs.map((job) => {
           const url = safeUrl(job.application_url);
           const link = url === '#'
             ? '<span class="jobs-card-link unavailable">Link unavailable</span>'
-            : `<a class="jobs-card-link" href="${url}" target="_blank" rel="noreferrer">View listing ↗</a>`;
+            : `<span class="jobs-card-links"><a class="jobs-card-link" href="${url}" target="_blank" rel="noreferrer">View listing ↗</a><a class="apply-button" href="${url}" target="_blank" rel="noreferrer" data-apply-id="${escapeHtml(job.id)}">Apply ↗</a></span>`;
 
           return `<article class="job-card database-job-card">
             <div class="job-top">
@@ -125,6 +128,7 @@
         window.location.replace('login.html');
       } else {
         const displayName = getDisplayName(data.session.user);
+        currentUserId = data.session.user.id;
         document.querySelector('#profile-name').textContent = displayName;
         document.querySelector('#profile-avatar').textContent = displayName.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
         document.body.classList.remove('auth-pending');
@@ -145,6 +149,54 @@
           renderJobs(jobs || []);
         }
       }
+
+      jobsList.addEventListener('click', async (event) => {
+        const applyLink = event.target.closest('[data-apply-id]');
+        if (!applyLink) return;
+
+        const job = loadedJobs.find((item) => String(item.id) === applyLink.dataset.applyId);
+        if (!job) return;
+
+        const application = {
+          user_id: currentUserId,
+          job_id: job.id,
+          is_saved: false,
+          status: 'Applied',
+          application_date: new Date().toISOString().slice(0, 10),
+          company: job.company,
+          role: job.role,
+          location: job.location,
+          application_url: job.application_url
+        };
+
+        const { data: existing, error: lookupError } = await supabase
+          .from('user_jobs')
+          .select('id')
+          .eq('user_id', currentUserId)
+          .eq('job_id', job.id)
+          .maybeSingle();
+
+        if (lookupError) {
+          console.error('Tracked job lookup failed:', lookupError);
+          jobsMessage.textContent = 'Could not track this application.';
+          jobsMessage.classList.add('jobs-message-error');
+          return;
+        }
+
+        const result = existing
+          ? await supabase.from('user_jobs').update(application).eq('id', existing.id).eq('user_id', currentUserId)
+          : await supabase.from('user_jobs').insert(application);
+
+        if (result.error) {
+          console.error('Tracked job write failed:', result.error);
+          jobsMessage.textContent = 'Could not track this application.';
+          jobsMessage.classList.add('jobs-message-error');
+          return;
+        }
+
+        jobsMessage.classList.remove('jobs-message-error');
+        jobsMessage.textContent = `${job.company || 'Job'} added to your applications.`;
+      });
 
       const profileMenuToggle = document.querySelector('#profile-menu-toggle');
       const profileMenu = document.querySelector('#profile-menu');
