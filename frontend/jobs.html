@@ -48,10 +48,20 @@
             <span id="jobs-count" class="applications-count">Loading jobs…</span>
           </div>
           <p id="jobs-message" class="jobs-message" role="status" aria-live="polite"></p>
-          <label class="jobs-search" for="job-search">
-            <span>Search by job title</span>
-            <input id="job-search" type="search" placeholder="e.g. Software Engineer Intern" autocomplete="off" />
-          </label>
+          <div class="jobs-search" role="search" aria-label="Search jobs">
+            <label class="jobs-search-field" for="job-search">
+              <span>Job title</span>
+              <input id="job-search" type="search" placeholder="Software Engineer Intern" autocomplete="off" />
+            </label>
+            <label class="jobs-search-field" for="company-search">
+              <span>Company</span>
+              <input id="company-search" type="search" placeholder="Company name" autocomplete="off" />
+            </label>
+            <label class="jobs-search-field" for="location-search">
+              <span>Location</span>
+              <input id="location-search" type="search" placeholder="Remote, New York..." autocomplete="off" />
+            </label>
+          </div>
           <div id="jobs-list" class="jobs-list"></div>
           <div id="jobs-empty" class="empty-state" hidden>No jobs are available yet.</div>
           <nav class="jobs-pagination" aria-label="Job board pages">
@@ -77,6 +87,8 @@
       const jobsMessage = document.querySelector('#jobs-message');
       const jobsEmpty = document.querySelector('#jobs-empty');
       const jobSearch = document.querySelector('#job-search');
+      const companySearch = document.querySelector('#company-search');
+      const locationSearch = document.querySelector('#location-search');
       const previousButton = document.querySelector('#jobs-previous');
       const nextButton = document.querySelector('#jobs-next');
       const jobsPage = document.querySelector('#jobs-page');
@@ -162,6 +174,9 @@
 
       async function loadJobs() {
         const searchTerm = jobSearch.value.trim();
+        const companyTerm = companySearch.value.trim();
+        const locationTerm = locationSearch.value.trim();
+        const hasFilters = Boolean(searchTerm || companyTerm || locationTerm);
         const from = currentPage * pageSize;
         const to = from + pageSize - 1;
         let query = supabase
@@ -173,6 +188,12 @@
 
         if (searchTerm) {
           query = query.ilike('role', `%${escapeIlike(searchTerm)}%`);
+        }
+        if (companyTerm) {
+          query = query.ilike('company', `%${escapeIlike(companyTerm)}%`);
+        }
+        if (locationTerm) {
+          query = query.ilike('location', `%${escapeIlike(locationTerm)}%`);
         }
 
         jobsMessage.classList.remove('jobs-message-error');
@@ -188,17 +209,21 @@
         }
 
         totalJobs = count || 0;
-        jobsEmpty.textContent = searchTerm
-          ? 'No jobs match that title.'
+        jobsEmpty.textContent = hasFilters
+          ? 'No jobs match those filters.'
           : 'No jobs are available yet.';
         jobsMessage.textContent = '';
         renderJobs(jobs || []);
       }
 
-      jobSearch.addEventListener('input', () => {
+      function handleSearchInput() {
         currentPage = 0;
         clearTimeout(searchTimer);
         searchTimer = setTimeout(loadJobs, 250);
+      }
+
+      [jobSearch, companySearch, locationSearch].forEach((input) => {
+        input.addEventListener('input', handleSearchInput);
       });
 
       previousButton.addEventListener('click', () => {
