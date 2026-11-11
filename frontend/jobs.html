@@ -48,8 +48,17 @@
             <span id="jobs-count" class="applications-count">Loading jobs…</span>
           </div>
           <p id="jobs-message" class="jobs-message" role="status" aria-live="polite"></p>
+          <label class="jobs-search" for="job-search">
+            <span>Search by job title</span>
+            <input id="job-search" type="search" placeholder="e.g. Software Engineer Intern" autocomplete="off" />
+          </label>
           <div id="jobs-list" class="jobs-list"></div>
           <div id="jobs-empty" class="empty-state" hidden>No jobs are available yet.</div>
+          <nav class="jobs-pagination" aria-label="Job board pages">
+            <button id="jobs-previous" class="secondary-button" type="button" disabled>← Previous</button>
+            <span id="jobs-page" aria-live="polite">Page 1</span>
+            <button id="jobs-next" class="secondary-button" type="button" disabled>Next →</button>
+          </nav>
         </section>
       </main>
     </div>
@@ -67,8 +76,16 @@
       const jobsCount = document.querySelector('#jobs-count');
       const jobsMessage = document.querySelector('#jobs-message');
       const jobsEmpty = document.querySelector('#jobs-empty');
+      const jobSearch = document.querySelector('#job-search');
+      const previousButton = document.querySelector('#jobs-previous');
+      const nextButton = document.querySelector('#jobs-next');
+      const jobsPage = document.querySelector('#jobs-page');
+      const pageSize = 50;
       let currentUserId = null;
       let loadedJobs = [];
+      let currentPage = 0;
+      let totalJobs = 0;
+      let searchTimer = null;
 
       function escapeHtml(value = '') {
         return String(value).replace(/[&<>'"]/g, (character) => ({
@@ -97,6 +114,24 @@
           : new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
       }
 
+      function companyIconUrl(value) {
+        try {
+          const url = new URL(value);
+          if (!['http:', 'https:'].includes(url.protocol)) return null;
+          return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(url.hostname)}&sz=64`;
+        } catch {
+          return null;
+        }
+      }
+
+      function companyLogo(job, url) {
+        const initials = escapeHtml((job.company || '??').slice(0, 2).toUpperCase());
+        const iconUrl = companyIconUrl(url);
+        if (!iconUrl) return `<span class="job-logo">${initials}</span>`;
+
+        return `<span class="job-logo job-logo-image"><img src="${escapeHtml(iconUrl)}" alt="" loading="lazy" onerror="this.parentElement.classList.remove('job-logo-image');this.parentElement.textContent='${initials}'" /></span>`;
+      }
+
       function renderJobs(jobs) {
         loadedJobs = jobs;
         jobsList.innerHTML = jobs.map((job) => {
@@ -107,16 +142,76 @@
 
           return `<article class="job-card database-job-card">
             <div class="job-top">
-              <span class="job-logo">${escapeHtml((job.company || '??').slice(0, 2).toUpperCase())}</span>
+              ${companyLogo(job, url)}
               <div><h2 class="job-title">${escapeHtml(job.role || 'Untitled role')}</h2><div class="job-company">${escapeHtml(job.company || 'Unknown company')}</div></div>
               <time class="job-date">${formatDate(job.posted_at)}</time>
             </div>
             <div class="job-details"><span>⌖ ${escapeHtml(job.location || 'Unspecified')}</span>${link}</div>
           </article>`;
         }).join('');
-        jobsCount.textContent = `${jobs.length} ${jobs.length === 1 ? 'job' : 'jobs'}`;
+        jobsCount.textContent = `${totalJobs} ${totalJobs === 1 ? 'job' : 'jobs'}`;
         jobsEmpty.hidden = jobs.length !== 0;
+        jobsPage.textContent = `Page ${currentPage + 1}`;
+        previousButton.disabled = currentPage === 0;
+        nextButton.disabled = (currentPage + 1) * pageSize >= totalJobs;
       }
+
+      function escapeIlike(value) {
+        return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+      }
+
+      async function loadJobs() {
+        const searchTerm = jobSearch.value.trim();
+        const from = currentPage * pageSize;
+        const to = from + pageSize - 1;
+        let query = supabase
+          .from('jobs')
+          .select('id, provider, provider_id, company, role, location, application_url, posted_at, is_active', { count: 'exact' })
+          .eq('is_active', true)
+          .order('posted_at', { ascending: false, nullsFirst: false })
+          .range(from, to);
+
+        if (searchTerm) {
+          query = query.ilike('role', `%${escapeIlike(searchTerm)}%`);
+        }
+
+        jobsMessage.classList.remove('jobs-message-error');
+        jobsMessage.textContent = 'Loading jobs…';
+        const { data: jobs, error: jobsError, count } = await query;
+
+        if (jobsError) {
+          console.error('Jobs query failed:', jobsError);
+          jobsCount.textContent = 'Unavailable';
+          jobsMessage.textContent = 'Could not load jobs right now.';
+          jobsMessage.classList.add('jobs-message-error');
+          return;
+        }
+
+        totalJobs = count || 0;
+        jobsEmpty.textContent = searchTerm
+          ? 'No jobs match that title.'
+          : 'No jobs are available yet.';
+        jobsMessage.textContent = '';
+        renderJobs(jobs || []);
+      }
+
+      jobSearch.addEventListener('input', () => {
+        currentPage = 0;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(loadJobs, 250);
+      });
+
+      previousButton.addEventListener('click', () => {
+        if (currentPage === 0) return;
+        currentPage -= 1;
+        loadJobs();
+      });
+
+      nextButton.addEventListener('click', () => {
+        if ((currentPage + 1) * pageSize >= totalJobs) return;
+        currentPage += 1;
+        loadJobs();
+      });
 
       function getDisplayName(user) {
         const metadata = user?.user_metadata || {};
@@ -133,21 +228,7 @@
         document.querySelector('#profile-avatar').textContent = displayName.split(/\s+/).filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
         document.body.classList.remove('auth-pending');
 
-        const { data: jobs, error: jobsError } = await supabase
-          .from('jobs')
-          .select('id, provider, provider_id, company, role, location, application_url, posted_at, is_active')
-          .eq('is_active', true)
-          .order('posted_at', { ascending: false, nullsFirst: false })
-          .limit(50);
-
-        if (jobsError) {
-          console.error('Jobs query failed:', jobsError);
-          jobsCount.textContent = 'Unavailable';
-          jobsMessage.textContent = 'Could not load jobs right now.';
-          jobsMessage.classList.add('jobs-message-error');
-        } else {
-          renderJobs(jobs || []);
-        }
+        await loadJobs();
       }
 
       jobsList.addEventListener('click', async (event) => {
