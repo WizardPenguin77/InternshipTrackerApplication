@@ -20,34 +20,84 @@ const supabase = supabaseUrl && serviceRoleKey
   ? createClient(supabaseUrl, serviceRoleKey)
   : null;
 
-async function fetchBoardJobs(board: { company: string; board_token: string }) {
-  const response = await fetch(
-    `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board.board_token)}/jobs?content=true`,
-  );
+const MAX_CONCURRENCY = 4;
+const REQUEST_TIMEOUT_MS = 20_000;
+const MAX_RETRIES = 2;
+const UPSERT_BATCH_SIZE = 500;
 
-  if (!response.ok) {
-    throw new Error(`${board.company}: Greenhouse returned ${response.status}`);
+type Board = { company: string; board_token: string };
+
+type NormalizedJob = {
+  provider: string;
+  provider_id: string;
+  company: string;
+  role: string;
+  location: string;
+  application_url: string | null;
+  description: string | null;
+  posted_at: string | null;
+  is_active: boolean;
+};
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function shouldRetry(status: number) {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+async function fetchBoardJobs(board: Board): Promise<NormalizedJob[]> {
+  const url =
+    `https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board.board_token)}/jobs?content=true`;
+  let lastError: unknown = new Error(`${board.company}: request failed`);
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+
+      if (!response.ok) {
+        lastError = new Error(`${board.company}: Greenhouse returned ${response.status}`);
+        if (!shouldRetry(response.status) || attempt === MAX_RETRIES) {
+          break;
+        }
+      } else {
+        const payload = await response.json();
+        return (Array.isArray(payload.jobs) ? payload.jobs : []).map((job: {
+          id: number;
+          title?: string;
+          updated_at?: string;
+          absolute_url?: string;
+          location?: { name?: string };
+          content?: string;
+        }) => ({
+          provider: 'greenhouse',
+          provider_id: String(job.id),
+          company: board.company,
+          role: job.title || 'Untitled role',
+          location: job.location?.name || 'Unspecified',
+          application_url: job.absolute_url || null,
+          description: job.content || null,
+          posted_at: job.updated_at || null,
+          is_active: true,
+        }));
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt === MAX_RETRIES) {
+        throw lastError;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    await wait(500 * (2 ** attempt) + Math.floor(Math.random() * 250));
   }
 
-  const payload = await response.json();
-  return (payload.jobs || []).map((job: {
-    id: number;
-    title?: string;
-    updated_at?: string;
-    absolute_url?: string;
-    location?: { name?: string };
-    content?: string;
-  }) => ({
-    provider: 'greenhouse',
-    provider_id: String(job.id),
-    company: board.company,
-    role: job.title || 'Untitled role',
-    location: job.location?.name || 'Unspecified',
-    application_url: job.absolute_url || null,
-    description: job.content || null,
-    posted_at: job.updated_at || null,
-    is_active: true,
-  }));
+  throw lastError;
 }
 
 Deno.serve(async (request) => {
@@ -77,22 +127,53 @@ Deno.serve(async (request) => {
     return json({ jobs: [], count: 0, failed_companies: [] });
   }
 
-  const results = await Promise.allSettled(boards.map(fetchBoardJobs));
-  const jobs = results
-    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof fetchBoardJobs>>> => result.status === 'fulfilled')
-    .flatMap((result) => result.value);
+  const activeBoards = boards as Board[];
+  const results: Array<{ board: Board; jobs?: NormalizedJob[]; error?: string }> =
+    new Array(activeBoards.length);
+  let nextBoardIndex = 0;
+
+  async function runWorker() {
+    while (nextBoardIndex < activeBoards.length) {
+      const boardIndex = nextBoardIndex;
+      nextBoardIndex += 1;
+      const board = activeBoards[boardIndex];
+
+      try {
+        results[boardIndex] = { board, jobs: await fetchBoardJobs(board) };
+      } catch (error) {
+        results[boardIndex] = {
+          board,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+  }
+
+  const workerCount = Math.min(MAX_CONCURRENCY, activeBoards.length);
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker()));
+
+  const jobs = results.flatMap((result) => result.jobs || []);
   const failedCompanies = results
-    .map((result, index) => result.status === 'rejected' ? { company: boards[index].company, error: String(result.reason) } : null)
-    .filter(Boolean);
+    .filter((result) => result.error)
+    .map((result) => ({ company: result.board.company, error: result.error }));
+  const successfulCompanies = results
+    .filter((result) => !result.error)
+    .map((result) => result.board.company);
 
   if (jobs.length) {
-    const { error: upsertError } = await supabase
-      .from('jobs')
-      .upsert(jobs, { onConflict: 'provider,provider_id' });
+    for (let start = 0; start < jobs.length; start += UPSERT_BATCH_SIZE) {
+      const { error: upsertError } = await supabase
+        .from('jobs')
+        .upsert(jobs.slice(start, start + UPSERT_BATCH_SIZE), { onConflict: 'provider,provider_id' });
 
-    if (upsertError) {
-      console.error('jobs upsert failed:', upsertError);
-      return json({ error: 'Jobs were fetched but could not be saved.', failed_companies: failedCompanies }, 500);
+      if (upsertError) {
+        console.error('jobs upsert failed:', upsertError);
+        return json({
+          error: 'Jobs were fetched but could not be saved.',
+          failed_companies: failedCompanies,
+          successful_companies: successfulCompanies,
+        }, 500);
+      }
     }
   }
 
@@ -105,6 +186,8 @@ Deno.serve(async (request) => {
   return json({
     jobs: jobs.slice(0, 50),
     count: jobs.length,
+    board_count: activeBoards.length,
+    successful_company_count: successfulCompanies.length,
     failed_companies: failedCompanies,
   });
 });
